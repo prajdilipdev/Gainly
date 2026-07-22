@@ -32,4 +32,4 @@ services:
       # Vercel production domain. Safe to commit — it's an origin, not a
       # secret. Update if you attach a custom domain later.
       - key: CORS_ORIGINS
-        value: https://gainly-gules.vercel.app
+        value: https://gainly-web.vercel.app
