@@ -1,21 +1,22 @@
 # ---- Build stage ----
-# Tailwind v4's native binary (@tailwindcss/oxide / lightningcss) needs its
-# musl (Alpine) build, which a workspace-scoped `npm ci` can fail to resolve
-# correctly. node:22-slim (glibc, Debian-based) avoids that entirely.
 FROM node:22-slim AS build
 WORKDIR /app
 
+# npm workspaces need every workspace's package.json present to resolve the
+# root package-lock.json — a workspace-scoped `npm ci --workspace apps/web`
+# was failing here even though the identical pattern works for the API
+# image, so install the full monorepo (matching the working `build-and-test`
+# CI job) and only build the web workspace below.
 COPY package.json package-lock.json* ./
+COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-RUN npm ci --workspace apps/web --include-workspace-root=false || npm install --workspace apps/web
+RUN npm ci
 
 COPY apps/web apps/web
 WORKDIR /app/apps/web
 RUN npx next build
 
 # ---- Runtime stage ----
-# Matches the build stage's glibc base so any native binaries traced into
-# the standalone output run without a musl/glibc mismatch.
 FROM node:22-slim AS runtime
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
