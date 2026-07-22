@@ -1,0 +1,17 @@
+name: Keep API awake
+
+# Render's free web-service tier sleeps after ~15 minutes with no inbound
+# traffic; the first request after that takes 30-70s to cold-start. Pinging
+# the health endpoint every 10 minutes keeps it warm at no cost (GitHub
+# Actions free tier), so real user requests don't hit a cold start.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API health endpoint
+        run: curl -sf --max-time 90 https://gainly-api.onrender.com/api/v1/health
