@@ -70,6 +70,39 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * Free-tier API hosts (e.g. Render) put the server to sleep when idle; the
+ * first request then hangs for up to a minute while it boots. Without any
+ * feedback, buttons just spin and the app looks broken — so once a request
+ * exceeds this threshold, tell the user what is actually happening.
+ */
+const SLOW_REQUEST_TOAST_AFTER_MS = 5_000;
+let slowToastShown = false;
+
+function startSlowRequestNotice(): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const timer = setTimeout(async () => {
+    if (slowToastShown) return;
+    slowToastShown = true;
+    const { toast } = await import('sonner');
+    toast.info('Waking up the server…', {
+      id: 'cold-start-notice',
+      description:
+        'The free server sleeps when idle and can take up to a minute to start. Your request will complete automatically.',
+      duration: 60_000,
+    });
+  }, SLOW_REQUEST_TOAST_AFTER_MS);
+  return () => {
+    clearTimeout(timer);
+    if (slowToastShown) {
+      slowToastShown = false;
+      void import('sonner').then(({ toast }) =>
+        toast.dismiss('cold-start-notice'),
+      );
+    }
+  };
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const doFetch = () => {
     const headers: Record<string, string> = {};
@@ -85,7 +118,13 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     });
   };
 
-  let res = await doFetch();
+  const stopSlowNotice = startSlowRequestNotice();
+  let res: Response;
+  try {
+    res = await doFetch();
+  } finally {
+    stopSlowNotice();
+  }
   if (res.status === 401 && !path.startsWith('/auth/')) {
     const refreshed = await tryRefresh();
     if (refreshed) {

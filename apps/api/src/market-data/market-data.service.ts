@@ -105,6 +105,19 @@ export class MarketDataService {
       this.logger.warn(
         `Quote fetch failed for ${yahooSymbol}: ${(err as Error).message}`,
       );
+      // The quote endpoint needs a Yahoo cookie+crumb, which Yahoo refuses
+      // to issue to many datacenter IPs (observed on Render: every quote()
+      // 429s while chart() works fine). The chart endpoint's metadata
+      // carries enough to build a usable quote, so fall back to it.
+      try {
+        const quote = await this.quoteFromChartMeta(symbol, exchange, yahooSymbol);
+        await this.cache.set(cacheKey, quote, QUOTE_TTL_SECONDS);
+        return quote;
+      } catch (chartErr) {
+        this.logger.warn(
+          `Chart-meta fallback failed for ${yahooSymbol}: ${(chartErr as Error).message}`,
+        );
+      }
       // Serve stale data if available rather than failing hard
       const stale = await this.cache.get<Quote>(`stale:${cacheKey}`);
       if (stale) return stale;
@@ -112,6 +125,62 @@ export class MarketDataService {
         `Unable to fetch quote for ${symbol} (${exchange})`,
       );
     }
+  }
+
+  /**
+   * Builds a Quote from the chart endpoint's metadata. Slightly less rich
+   * than the quote endpoint (no market cap; day range may be absent outside
+   * trading hours) but works from datacenter IPs where quote() is blocked.
+   */
+  private async quoteFromChartMeta(
+    symbol: string,
+    exchange: Exchange,
+    yahooSymbol: string,
+  ): Promise<Quote> {
+    const period1 = new Date();
+    period1.setDate(period1.getDate() - 7);
+    const result = await yahooFinance.chart(
+      yahooSymbol,
+      { period1, interval: '1d' },
+      FETCH_OPTIONS,
+    );
+    const meta = result.meta;
+    // Yahoo returns more meta fields than yahoo-finance2@2.13's typings
+    // declare; read the undeclared ones through a widened view.
+    const extra = meta as typeof meta & {
+      regularMarketDayHigh?: number;
+      regularMarketDayLow?: number;
+      fiftyTwoWeekHigh?: number;
+      fiftyTwoWeekLow?: number;
+      regularMarketVolume?: number;
+      shortName?: string;
+      longName?: string;
+    };
+    const price = meta.regularMarketPrice ?? 0;
+    if (!price) {
+      throw new Error('chart meta carried no regularMarketPrice');
+    }
+    const prevClose =
+      meta.previousClose ?? meta.chartPreviousClose ?? price;
+    return {
+      symbol: symbol.toUpperCase(),
+      exchange,
+      yahooSymbol,
+      currency: meta.currency ?? currencyForExchange(exchange),
+      price,
+      previousClose: prevClose,
+      change: price - prevClose,
+      changePercent: prevClose ? ((price - prevClose) / prevClose) * 100 : 0,
+      dayHigh: extra.regularMarketDayHigh ?? null,
+      dayLow: extra.regularMarketDayLow ?? null,
+      fiftyTwoWeekHigh: extra.fiftyTwoWeekHigh ?? null,
+      fiftyTwoWeekLow: extra.fiftyTwoWeekLow ?? null,
+      marketCap: null,
+      volume: extra.regularMarketVolume ?? null,
+      shortName: extra.shortName ?? extra.longName ?? null,
+      marketState: null,
+      asOf: new Date().toISOString(),
+    };
   }
 
   async getQuotes(
@@ -226,8 +295,16 @@ export class MarketDataService {
     const cached = await this.cache.get<number>(cacheKey);
     if (cached) return cached;
     try {
-      const q = await yahooFinance.quote('USDINR=X', {}, FETCH_OPTIONS);
-      const rate = q.regularMarketPrice ?? 83;
+      // Chart meta instead of quote(): the quote endpoint's cookie+crumb
+      // handshake is refused from many datacenter IPs (see getQuote above).
+      const period1 = new Date();
+      period1.setDate(period1.getDate() - 7);
+      const result = await yahooFinance.chart(
+        'USDINR=X',
+        { period1, interval: '1d' },
+        FETCH_OPTIONS,
+      );
+      const rate = result.meta.regularMarketPrice ?? 83;
       await this.cache.set(cacheKey, rate, FX_TTL_SECONDS);
       await this.cache.set('stale:fx:USDINR', rate, 7 * 24 * 60 * 60);
       return rate;

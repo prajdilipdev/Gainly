@@ -29,5 +29,7 @@ services:
         sync: false
       - key: COOKIE_SECRET
         sync: false
+      # Vercel production domain. Safe to commit — it's an origin, not a
+      # secret. Update if you attach a custom domain later.
       - key: CORS_ORIGINS
-        sync: false
+        value: https://gainly-gules.vercel.app
