@@ -11,7 +11,12 @@ services:
     name: gainly-api
     runtime: node
     plan: free
-    buildCommand: npm install && npx prisma generate --schema=apps/api/prisma/schema.prisma && npm run build --workspace apps/api
+    # --include=dev is required here: NODE_ENV=production (set below, needed
+    # at runtime for secure cookies) is also visible to the build step on
+    # Render, and npm skips devDependencies — including @nestjs/cli, which
+    # provides the `nest` command this build needs — whenever it sees
+    # production mode. This flag overrides that.
+    buildCommand: npm install --include=dev && npx prisma generate --schema=apps/api/prisma/schema.prisma && npm run build --workspace apps/api
     startCommand: npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js
     envVars:
       - key: NODE_ENV

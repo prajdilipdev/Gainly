@@ -46,7 +46,7 @@ Do these in order — each step needs something from the previous one.
    | **Branch** | `main` |
    | **Root Directory** | *(leave blank — repo root)* |
    | **Runtime** | `Node` |
-   | **Build Command** | `npm install && npx prisma generate --schema=apps/api/prisma/schema.prisma && npm run build --workspace apps/api` |
+   | **Build Command** | `npm install --include=dev && npx prisma generate --schema=apps/api/prisma/schema.prisma && npm run build --workspace apps/api` |
    | **Start Command** | `npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js` |
    | **Instance Type** | `Free` |
 
@@ -57,6 +57,13 @@ Do these in order — each step needs something from the previous one.
    > versions this app was built and tested with — the same command shape
    > used throughout local development. Render doesn't need a Root
    > Directory override for this to work.
+
+   > Why `--include=dev` is not optional: `NODE_ENV=production` (set in the
+   > next step, and needed at runtime so auth cookies are marked `Secure`)
+   > is also visible during the build. npm skips `devDependencies` whenever
+   > it sees production mode — and `@nestjs/cli`, which provides the `nest`
+   > command that compiles this API, is a devDependency. Without the flag
+   > the build fails with `sh: 1: nest: not found` / `npm error code 127`.
 
 4. Under **Environment Variables**, add:
 
