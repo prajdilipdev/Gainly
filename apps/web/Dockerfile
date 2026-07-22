@@ -14,7 +14,11 @@ RUN npm ci
 
 COPY apps/web apps/web
 WORKDIR /app/apps/web
-RUN npx next build
+# This app ships no static assets (the icon, robots.txt and sitemap are all
+# App Router routes), so apps/web/public does not exist in the repo — and a
+# COPY of a missing path is a hard Docker failure. Create it so the runtime
+# stage's COPY works whether or not assets are added later.
+RUN mkdir -p public && npx next build
 
 # ---- Runtime stage ----
 FROM node:22-slim AS runtime
