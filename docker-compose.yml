@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: spt
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spt_password}
+      POSTGRES_DB: stock_portfolio
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U spt -d stock_portfolio']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://spt:${POSTGRES_PASSWORD:-spt_password}@postgres:5432/stock_portfolio?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET in .env}
+      COOKIE_SECRET: ${COOKIE_SECRET:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      PORT: 4000
+      NODE_ENV: production
+    ports:
+      - '4000:4000'
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:4000
+      NODE_ENV: production
+    ports:
+      - '3000:3000'
+
+volumes:
+  pgdata:

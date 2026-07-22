@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Exchange {
+  NYSE
+  NASDAQ
+  NSE
+  BSE
+}
+
+enum Currency {
+  USD
+  INR
+}
+
+enum TransactionType {
+  BUY
+  SELL
+  DIVIDEND
+  SPLIT
+}
+
+enum AlertCondition {
+  ABOVE
+  BELOW
+  PCT_CHANGE_UP
+  PCT_CHANGE_DOWN
+}
+
+enum AlertStatus {
+  ACTIVE
+  TRIGGERED
+  DISABLED
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  name          String
+  baseCurrency  Currency       @default(USD)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  portfolios    Portfolio[]
+  watchlists    Watchlist[]
+  alerts        Alert[]
+  refreshTokens RefreshToken[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Portfolio {
+  id           String        @id @default(uuid())
+  name         String
+  description  String?
+  baseCurrency Currency      @default(USD)
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("portfolios")
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  portfolioId String
+  portfolio   Portfolio       @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  type        TransactionType
+  symbol      String
+  exchange    Exchange
+  companyName String?
+  quantity    Decimal         @db.Decimal(20, 6)
+  price       Decimal         @db.Decimal(20, 6) // per-share price; for DIVIDEND: total amount; for SPLIT: ratio numerator
+  fees        Decimal         @default(0) @db.Decimal(20, 6)
+  currency    Currency
+  notes       String?
+  executedAt  DateTime
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([portfolioId, symbol])
+  @@index([portfolioId, executedAt])
+  @@map("transactions")
+}
+
+model Watchlist {
+  id        String          @id @default(uuid())
+  name      String
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WatchlistItem[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([userId, name])
+  @@map("watchlists")
+}
+
+model WatchlistItem {
+  id          String    @id @default(uuid())
+  watchlistId String
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+  symbol      String
+  exchange    Exchange
+  companyName String?
+  addedAt     DateTime  @default(now())
+
+  @@unique([watchlistId, symbol])
+  @@map("watchlist_items")
+}
+
+model Alert {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  symbol      String
+  exchange    Exchange
+  condition   AlertCondition
+  threshold   Decimal        @db.Decimal(20, 6)
+  status      AlertStatus    @default(ACTIVE)
+  note        String?
+  triggeredAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // The scheduler sweeps by (status, exchange) once per minute
+  @@index([status, exchange])
+  @@index([userId])
+  @@map("alerts")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
