@@ -1,6 +1,22 @@
 import type { NextConfig } from 'next';
 
-const API_URL = process.env.API_URL ?? 'http://localhost:4000';
+/**
+ * Origin of the backend API. Normalised so that common ways of writing the
+ * value all resolve to the same thing — otherwise a trailing slash produces
+ * `host//api/v1/...` and pasting the full API base produces
+ * `host/api/v1/api/v1/...`, both of which 404 in confusing ways.
+ * Accepts: https://host, https://host/, https://host/api/v1, https://host/api/v1/
+ */
+function normaliseApiUrl(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\/+$/, '') // drop trailing slashes
+    .replace(/\/api\/v1$/, ''); // drop an accidentally-included API base path
+}
+
+const API_URL = normaliseApiUrl(
+  process.env.API_URL ?? 'http://localhost:4000',
+);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
