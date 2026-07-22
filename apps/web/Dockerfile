@@ -1,5 +1,8 @@
 # ---- Build stage ----
-FROM node:22-alpine AS build
+# Tailwind v4's native binary (@tailwindcss/oxide / lightningcss) needs its
+# musl (Alpine) build, which a workspace-scoped `npm ci` can fail to resolve
+# correctly. node:22-slim (glibc, Debian-based) avoids that entirely.
+FROM node:22-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -11,7 +14,9 @@ WORKDIR /app/apps/web
 RUN npx next build
 
 # ---- Runtime stage ----
-FROM node:22-alpine AS runtime
+# Matches the build stage's glibc base so any native binaries traced into
+# the standalone output run without a musl/glibc mismatch.
+FROM node:22-slim AS runtime
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
