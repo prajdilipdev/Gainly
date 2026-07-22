@@ -1,8 +1,9 @@
 import type { MetadataRoute } from 'next';
+import { getSiteUrl } from '@/lib/site-url';
 
 /** Only the publicly reachable pages belong in the sitemap. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  const baseUrl = getSiteUrl();
   const lastModified = new Date();
 
   return [

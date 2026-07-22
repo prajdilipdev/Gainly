@@ -2,10 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import { getSiteUrl } from '@/lib/site-url';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+const SITE_URL = getSiteUrl();
 const DESCRIPTION =
   'Gainly: track US (NYSE/NASDAQ) and Indian (NSE/BSE) stock portfolios with live prices, analytics, alerts, and smart imports.';
 

@@ -1,0 +1,28 @@
+# Optional Render Blueprint — lets you create the API service in one step via
+# Render's "New > Blueprint" flow instead of filling in the "New > Web
+# Service" form by hand. Secrets are intentionally left for you to fill in
+# via the Render dashboard (sync: false) rather than committed here.
+#
+# If Render's Blueprint schema has changed since this was written and the
+# import fails, use the manual "New > Web Service" steps in
+# docs/DEPLOY_FREE_TIER.md instead — same settings, just typed into the form.
+services:
+  - type: web
+    name: gainly-api
+    runtime: node
+    plan: free
+    buildCommand: npm install && npx prisma generate --schema=apps/api/prisma/schema.prisma && npm run build --workspace apps/api
+    startCommand: npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma && node apps/api/dist/main.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: COOKIE_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

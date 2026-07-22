@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { getSiteUrl } from '@/lib/site-url';
 
 /**
  * Only the marketing/auth entry points are crawlable. Everything behind the
@@ -6,7 +7,7 @@ import type { MetadataRoute } from 'next';
  * explicitly disallowed rather than left to chance.
  */
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  const baseUrl = getSiteUrl();
 
   return {
     rules: {

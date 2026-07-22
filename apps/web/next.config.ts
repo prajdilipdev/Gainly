@@ -5,7 +5,12 @@ const API_URL = process.env.API_URL ?? 'http://localhost:4000';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: 'standalone',
+  // 'standalone' packages a self-contained server for Docker (see
+  // apps/web/Dockerfile). Vercel has its own build/output pipeline and does
+  // not need — and can misbehave with — this mode, so only apply it when
+  // building outside Vercel (e.g. `docker build` or a plain `next build`
+  // on a VPS).
+  ...(process.env.VERCEL ? {} : { output: 'standalone' as const }),
   async rewrites() {
     // Proxy API calls through the web origin so the httpOnly refresh cookie
     // works without cross-site cookie headaches.
