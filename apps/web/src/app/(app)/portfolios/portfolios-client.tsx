@@ -105,7 +105,19 @@ export default function PortfoliosPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {(portfolios ?? []).map((p) => (
-            <Card key={p.id} className="flex flex-col">
+            <Card
+              key={p.id}
+              className="relative flex flex-col transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm"
+            >
+              {/* Stretched link: the whole card navigates, but keeps real
+                  anchor semantics (keyboard focus, open-in-new-tab). The
+                  delete button sits above it via a higher z-index so its own
+                  click is not swallowed. */}
+              <Link
+                href={`/portfolios/${p.slug ?? p.id}`}
+                aria-label={`Open ${p.name}`}
+                className="absolute inset-0 z-0 rounded-xl"
+              />
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="truncate">{p.name}</CardTitle>
@@ -131,19 +143,15 @@ export default function PortfoliosPage() {
                   <p>{p._count?.transactions ?? 0} transactions</p>
                   <p>Created {formatDate(p.createdAt)}</p>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Delete ${p.name}`}
-                    onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
-                  >
-                    <Trash2 className="text-destructive" />
-                  </Button>
-                  <Button asChild size="sm">
-                    <Link href={`/portfolios/${p.slug ?? p.id}`}>Open</Link>
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete ${p.name}`}
+                  className="relative z-10"
+                  onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
+                >
+                  <Trash2 className="text-destructive" />
+                </Button>
               </CardContent>
             </Card>
           ))}
