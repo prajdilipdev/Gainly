@@ -1,10 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { bootstrapSession } from '@/lib/api';
 import { useLogin } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,18 +29,45 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
+  const router = useRouter();
   const login = useLogin();
+  // If a persistent session cookie is still valid, skip the form entirely.
+  const [checkingSession, setCheckingSession] = useState(true);
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
+  useEffect(() => {
+    let cancelled = false;
+    void bootstrapSession().then((ok) => {
+      if (cancelled) return;
+      if (ok) router.replace('/dashboard');
+      else setCheckingSession(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
   const onSubmit = (values: FormValues) => {
     login.mutate(values, {
       onError: (err) => toast.error(err.message),
     });
   };
+
+  // Avoid flashing the form while an existing session is being restored.
+  if (checkingSession) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="text-xl">Sign in</CardTitle>
+          <CardDescription>Checking your session…</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-md">

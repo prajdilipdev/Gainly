@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { useTheme } from 'next-themes';
-import { getAccessToken } from '@/lib/api';
+import { bootstrapSession } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useCurrentUser, useLogout } from '@/hooks/use-auth';
 import {
@@ -64,11 +64,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const logout = useLogout();
 
   useEffect(() => {
-    if (!getAccessToken()) {
-      router.replace('/login');
-    } else {
-      setAuthorized(true);
-    }
+    let cancelled = false;
+    // Try to restore the session from the persistent refresh cookie before
+    // giving up — otherwise closing the browser (which clears the in-memory
+    // access token) would force a fresh login every time.
+    void bootstrapSession().then((ok) => {
+      if (cancelled) return;
+      if (ok) setAuthorized(true);
+      else router.replace('/login');
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   useBrowserNotifications();

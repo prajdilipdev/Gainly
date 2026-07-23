@@ -41,6 +41,18 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Restores a session on app startup. The access token lives in sessionStorage
+ * (cleared when the browser closes), but the refresh token is a persistent
+ * httpOnly cookie (valid for days), so when the in-memory token is gone we try
+ * to mint a fresh one from that cookie before treating the user as logged out.
+ * Returns true if a valid session is available afterwards.
+ */
+export async function bootstrapSession(): Promise<boolean> {
+  if (getAccessToken()) return true;
+  return tryRefresh();
+}
+
 async function tryRefresh(): Promise<boolean> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
