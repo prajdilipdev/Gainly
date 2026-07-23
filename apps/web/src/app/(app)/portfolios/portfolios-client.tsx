@@ -116,6 +116,15 @@ export default function PortfoliosPage() {
                     {p.description}
                   </CardDescription>
                 )}
+                {p.symbols && p.symbols.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {p.symbols.map((s) => (
+                      <Badge key={s} variant="outline" className="font-mono text-xs">
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="mt-auto flex items-end justify-between pt-4">
                 <div className="text-sm text-muted-foreground">

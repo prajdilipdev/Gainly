@@ -22,6 +22,8 @@ export interface Portfolio {
   description: string | null;
   baseCurrency: Currency;
   createdAt: string;
+  /** Up to 5 currently-held symbols, largest positions first (list view). */
+  symbols?: string[];
   _count?: { transactions: number };
 }
 

@@ -7,6 +7,10 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePortfolioDto, UpdatePortfolioDto } from './dto/portfolio.dto';
+import {
+  computeHoldings,
+  EngineTransaction,
+} from '../analytics/holdings.engine';
 
 // Matches a v4-style UUID, used to tell an id apart from a slug in the URL.
 const UUID_RE =
@@ -48,7 +52,54 @@ export class PortfoliosService {
         p.slug = slug;
       }
     }
-    return portfolios;
+    const heldSymbols = await this.topHeldSymbols(portfolios.map((p) => p.id));
+    return portfolios.map((p) => ({
+      ...p,
+      // Symbols currently held (net quantity > 0), largest positions first,
+      // capped at 5 for the card preview.
+      symbols: heldSymbols.get(p.id) ?? [],
+    }));
+  }
+
+  /**
+   * For each portfolio id, the (up to 5) symbols still held, ordered by cost
+   * basis descending. One query for all portfolios, then the shared holdings
+   * engine per portfolio — no per-portfolio round trips.
+   */
+  private async topHeldSymbols(
+    portfolioIds: string[],
+  ): Promise<Map<string, string[]>> {
+    const result = new Map<string, string[]>();
+    if (!portfolioIds.length) return result;
+    const txs = await this.prisma.transaction.findMany({
+      where: { portfolioId: { in: portfolioIds } },
+      orderBy: { executedAt: 'asc' }, // the engine expects chronological order
+    });
+    const byPortfolio = new Map<string, EngineTransaction[]>();
+    for (const t of txs) {
+      const list = byPortfolio.get(t.portfolioId) ?? [];
+      list.push({
+        type: t.type,
+        symbol: t.symbol,
+        exchange: t.exchange,
+        companyName: t.companyName,
+        quantity: t.quantity.toNumber(),
+        price: t.price.toNumber(),
+        fees: t.fees.toNumber(),
+        currency: t.currency,
+        executedAt: t.executedAt,
+      });
+      byPortfolio.set(t.portfolioId, list);
+    }
+    for (const [portfolioId, engineTxs] of byPortfolio) {
+      const symbols = computeHoldings(engineTxs)
+        .filter((h) => h.quantity > 0)
+        .sort((a, b) => b.costBasis - a.costBasis)
+        .slice(0, 5)
+        .map((h) => h.symbol);
+      result.set(portfolioId, symbols);
+    }
+    return result;
   }
 
   /** Look up a portfolio by its UUID or its per-user slug. */
