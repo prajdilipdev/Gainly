@@ -1,7 +1,8 @@
 'use client';
 
-import { use, useMemo, useState } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import {
   Download,
   Pencil,
@@ -11,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import {
   useDeleteTransaction,
+  usePortfolio,
   usePortfolioSummary,
   useTransactions,
   type TransactionFilters,
@@ -86,9 +88,14 @@ import type {
 export default function PortfolioDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = use(params);
+  const router = useRouter();
+  const { slug } = use(params);
+  // Resolve the URL segment (slug or legacy UUID) to the portfolio so the rest
+  // of the page can key its calls off the real id.
+  const { data: portfolio, isError } = usePortfolio(slug);
+  const id = portfolio?.id;
   const { data: summary, isLoading } = usePortfolioSummary(id);
   const [txDialogOpen, setTxDialogOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -96,7 +103,26 @@ export default function PortfolioDetailPage({
     null,
   );
 
-  if (isLoading || !summary) {
+  // If reached via an old /portfolios/<uuid> link, swap the address bar to the
+  // readable slug without adding a history entry.
+  useEffect(() => {
+    if (portfolio?.slug && portfolio.slug !== slug) {
+      router.replace(`/portfolios/${portfolio.slug}`);
+    }
+  }, [portfolio?.slug, slug, router]);
+
+  if (isError) {
+    return (
+      <div className="py-16 text-center">
+        <h1 className="text-2xl font-bold">Portfolio not found</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          It may have been deleted, or the link is incorrect.
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading || !summary || !id) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-72" />
@@ -116,7 +142,7 @@ export default function PortfolioDetailPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Portfolio</h1>
+          <h1 className="text-2xl font-bold">{portfolio?.name ?? 'Portfolio'}</h1>
           <p className="text-sm text-muted-foreground">
             {summary.holdingsCount} holdings · base {cur} · USD/INR{' '}
             {formatNumber(summary.usdInrRate)}

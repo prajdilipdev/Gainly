@@ -72,6 +72,10 @@ model RefreshToken {
 model Portfolio {
   id           String        @id @default(uuid())
   name         String
+  // URL-friendly form of the name, unique per user, used in the address bar
+  // (/portfolios/<slug>). Nullable so existing rows migrate cleanly; the API
+  // backfills any null slug the first time a user's portfolios are listed.
+  slug         String?
   description  String?
   baseCurrency Currency      @default(USD)
   userId       String
@@ -81,6 +85,7 @@ model Portfolio {
   updatedAt    DateTime      @updatedAt
 
   @@unique([userId, name])
+  @@unique([userId, slug])
   @@index([userId])
   @@map("portfolios")
 }

@@ -6,7 +6,7 @@ export const metadata: Metadata = { title: 'Portfolio' };
 export default function Page({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
   return <PortfolioDetailClient params={params} />;
 }

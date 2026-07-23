@@ -18,6 +18,7 @@ export interface User {
 export interface Portfolio {
   id: string;
   name: string;
+  slug: string | null;
   description: string | null;
   baseCurrency: Currency;
   createdAt: string;
@@ -113,6 +114,7 @@ export interface PortfolioSummary {
 export interface DashboardEntry {
   id: string;
   name: string;
+  slug: string | null;
   baseCurrency: Currency;
   summary: PortfolioSummary;
 }

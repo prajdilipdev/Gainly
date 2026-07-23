@@ -148,7 +148,7 @@ export default function DashboardPage() {
                 {portfolios.map((p) => (
                   <Link
                     key={p.id}
-                    href={`/portfolios/${p.id}`}
+                    href={`/portfolios/${p.slug ?? p.id}`}
                     className="flex items-center justify-between gap-4 rounded-lg border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent hover:shadow-sm"
                   >
                     <div className="min-w-0">

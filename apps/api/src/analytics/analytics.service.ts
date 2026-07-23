@@ -226,6 +226,7 @@ export class AnalyticsService {
     return portfolios.map((p, i) => ({
       id: p.id,
       name: p.name,
+      slug: p.slug,
       baseCurrency: p.baseCurrency,
       summary: summaries[i],
     }));

@@ -21,12 +21,14 @@ export class PortfoliosController {
     return this.portfoliosService.findAll(userId);
   }
 
-  @Get(':id')
+  // Accepts either the UUID or the readable slug so /portfolios/my-stocks
+  // works alongside old /portfolios/<uuid> bookmarks.
+  @Get(':idOrSlug')
   findOne(
     @CurrentUser('sub') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('idOrSlug') idOrSlug: string,
   ) {
-    return this.portfoliosService.findOne(userId, id);
+    return this.portfoliosService.findOne(userId, idOrSlug);
   }
 
   @Post()

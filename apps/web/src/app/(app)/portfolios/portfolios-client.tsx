@@ -132,7 +132,7 @@ export default function PortfoliosPage() {
                     <Trash2 className="text-destructive" />
                   </Button>
                   <Button asChild size="sm">
-                    <Link href={`/portfolios/${p.id}`}>Open</Link>
+                    <Link href={`/portfolios/${p.slug ?? p.id}`}>Open</Link>
                   </Button>
                 </div>
               </CardContent>

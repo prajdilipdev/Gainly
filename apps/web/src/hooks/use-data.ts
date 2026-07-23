@@ -36,6 +36,18 @@ export function usePortfolios() {
   });
 }
 
+/**
+ * Resolves a portfolio by its URL segment (readable slug or UUID) to the full
+ * record, so the detail page can use the real id for its other API calls.
+ */
+export function usePortfolio(idOrSlug: string | undefined) {
+  return useQuery({
+    queryKey: ['portfolio', idOrSlug],
+    queryFn: () => api.get<Portfolio>(`/portfolios/${idOrSlug}`),
+    enabled: !!idOrSlug,
+  });
+}
+
 export function usePortfolioSummary(portfolioId: string | undefined) {
   return useQuery({
     queryKey: ['portfolio-summary', portfolioId],
