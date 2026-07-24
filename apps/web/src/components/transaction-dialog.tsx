@@ -38,7 +38,23 @@ const TYPES: { value: TransactionType; label: string }[] = [
   { value: 'SPLIT', label: 'Split' },
 ];
 
-const EXCHANGES: Exchange[] = ['NYSE', 'NASDAQ', 'NSE', 'BSE'];
+// The four exchanges collapse to two markets for the picker; each market has
+// a sensible default exchange for manually-entered symbols. Picking a symbol
+// from search still sets the precise exchange (incl. NYSE/BSE) underneath.
+type Market = 'US' | 'IN';
+
+function marketForExchange(exchange: Exchange): Market {
+  return exchange === 'NSE' || exchange === 'BSE' ? 'IN' : 'US';
+}
+
+function defaultExchangeForMarket(market: Market): Exchange {
+  return market === 'IN' ? 'NSE' : 'NASDAQ';
+}
+
+const MARKETS: { value: Market; label: string; currency: string }[] = [
+  { value: 'US', label: 'US — $ USD', currency: 'USD' },
+  { value: 'IN', label: 'India — ₹ INR', currency: 'INR' },
+];
 
 interface FormState {
   type: TransactionType;
@@ -132,6 +148,9 @@ export function TransactionDialog({
 
   const isDividend = form.type === 'DIVIDEND';
   const isSplit = form.type === 'SPLIT';
+  // Currency is decided by the selected market, mirroring the server.
+  const currency = marketForExchange(form.exchange) === 'IN' ? 'INR' : 'USD';
+  const currencySymbol = currency === 'INR' ? '₹' : '$';
 
   // Live LTP for the selected stock, shown as faded placeholder text in the
   // price field. Debounced so hand-typed partial symbols don't spam quotes.
@@ -271,18 +290,20 @@ export function TransactionDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label>Exchange</Label>
+              <Label>Market</Label>
               <Select
-                value={form.exchange}
-                onValueChange={(v: string) => set('exchange', v as Exchange)}
+                value={marketForExchange(form.exchange)}
+                onValueChange={(v: string) =>
+                  set('exchange', defaultExchangeForMarket(v as Market))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {EXCHANGES.map((e) => (
-                    <SelectItem key={e} value={e}>
-                      {e}
+                  {MARKETS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -306,10 +327,10 @@ export function TransactionDialog({
             <div className="space-y-2">
               <Label>
                 {isDividend
-                  ? 'Total amount'
+                  ? `Total amount (${currencySymbol})`
                   : isSplit
                     ? 'Split ratio'
-                    : 'Price / share'}
+                    : `Price / share (${currencySymbol})`}
               </Label>
               <Input
                 type="number"
