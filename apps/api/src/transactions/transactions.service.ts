@@ -72,7 +72,9 @@ export class TransactionsService {
         quantity: new Prisma.Decimal(dto.quantity),
         price: new Prisma.Decimal(dto.price),
         fees: new Prisma.Decimal(dto.fees ?? 0),
-        currency: dto.currency ?? currencyForExchange(dto.exchange),
+        // Currency is fully determined by the exchange (NSE/BSE → INR,
+        // NYSE/NASDAQ → USD); never let a stray value contradict it.
+        currency: currencyForExchange(dto.exchange),
         notes: dto.notes?.trim(),
         executedAt: new Date(dto.executedAt),
       },
@@ -126,7 +128,9 @@ export class TransactionsService {
         price:
           dto.price !== undefined ? new Prisma.Decimal(dto.price) : undefined,
         fees: dto.fees !== undefined ? new Prisma.Decimal(dto.fees) : undefined,
-        currency: dto.currency,
+        // Keep currency in lockstep with the (possibly changed) exchange, so
+        // correcting a stock's exchange also fixes a wrong currency.
+        currency: currencyForExchange(merged.exchange),
         notes: dto.notes?.trim(),
         executedAt: dto.executedAt ? new Date(dto.executedAt) : undefined,
       },
