@@ -281,12 +281,40 @@ export class MarketDataService {
           type: (item as { quoteType?: string }).quoteType ?? 'EQUITY',
         });
       }
+      this.rankByRelevance(results, q);
       await this.cache.set(cacheKey, results, SEARCH_TTL_SECONDS);
       return results;
     } catch (err) {
       this.logger.warn(`Search failed for "${q}": ${(err as Error).message}`);
       return [];
     }
+  }
+
+  /**
+   * Yahoo often ranks a US company above a better name match on another
+   * exchange (e.g. "reliance" surfaces NYSE:RS "Reliance, Inc." above
+   * NSE:RELIANCE "Reliance Industries"). Re-rank so the closest match to what
+   * the user typed wins: exact symbol first, then symbol/name prefixes, then
+   * name contains — preserving Yahoo's order within each tier (stable sort).
+   */
+  private rankByRelevance(results: SearchResult[], query: string): void {
+    const q = query.toLowerCase().trim();
+    const score = (r: SearchResult): number => {
+      const symbol = r.symbol.toLowerCase();
+      const name = r.name.toLowerCase();
+      if (symbol === q) return 0;
+      if (symbol.startsWith(q)) return 1;
+      if (name === q) return 2;
+      if (name.startsWith(q)) return 3;
+      if (name.includes(q)) return 4;
+      return 5;
+    };
+    results
+      .map((r, i) => ({ r, i, s: score(r) }))
+      .sort((a, b) => a.s - b.s || a.i - b.i)
+      .forEach((entry, idx) => {
+        results[idx] = entry.r;
+      });
   }
 
   /** USD/INR spot rate used to convert holdings into the account base currency. */
